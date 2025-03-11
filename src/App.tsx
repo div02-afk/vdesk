@@ -12,6 +12,11 @@ function App() {
     setGreetMsg(await invoke("greet", { name }));
   }
 
+  async function getOpenWindows() {
+    const openWindows: string = await invoke("send_open_windows");
+    setGreetMsg(openWindows);
+  }
+
   return (
     <main className="container">
       <h1>Welcome to Tauri + React</h1>
@@ -33,7 +38,7 @@ function App() {
         className="row"
         onSubmit={(e) => {
           e.preventDefault();
-          greet();
+          getOpenWindows();
         }}
       >
         <input

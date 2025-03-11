@@ -4338,6 +4338,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-opener",
  "windows",
+ "windows-result 0.3.1",
 ]
 
 [[package]]

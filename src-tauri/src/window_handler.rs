@@ -1,4 +1,4 @@
-use std::{ ffi::OsString, os::windows::ffi::OsStringExt };
+use std::{ ffi::OsString, os::windows::ffi::OsStringExt, process::Command };
 
 use windows::{
     core::{ BOOL, GUID, PWSTR },
@@ -217,6 +217,19 @@ pub fn get_executable_path_from_pid(pid: u32) -> Result<String, Error> {
                 Ok(path)
             }
             Err(e) => { Err(e) }
+        }
+    }
+}
+
+pub fn launch_and_get_pid(path: &str) -> Option<u32> {
+    match Command::new(path).spawn() {
+        Ok(child) => {
+            println!("Spawned process with PID: {}", child.id());
+            Some(child.id())
+        }
+        Err(e) => {
+            eprintln!("Failed to spawn: {:?}", e);
+            None
         }
     }
 }

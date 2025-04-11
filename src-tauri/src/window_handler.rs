@@ -1,9 +1,19 @@
+use std::{ ffi::OsString, os::windows::ffi::OsStringExt };
+
 use windows::{
-    core::{ IUnknown, Interface, BOOL, GUID, HRESULT },
+    core::{ BOOL, GUID, PWSTR },
     Win32::{
-        Foundation::{ self, HWND, LPARAM },
+        Foundation::{ self, HANDLE, HWND, LPARAM, MAX_PATH },
         Graphics::Dwm::{ DwmGetWindowAttribute, DWMWA_CLOAKED },
-        System::Com::{ CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED },
+        System::{
+            Com::{ CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED },
+            Threading::{
+                OpenProcess,
+                QueryFullProcessImageNameW,
+                PROCESS_NAME_FORMAT,
+                PROCESS_QUERY_LIMITED_INFORMATION,
+            },
+        },
         UI::{
             Shell::IVirtualDesktopManager,
             WindowsAndMessaging::{
@@ -27,11 +37,12 @@ use windows_result::Error;
 
 #[derive(Debug)]
 pub struct WindowInfo {
-    hwnd: HWND,
-    title: String,
-    class_name: String,
-    process_id: u32,
-    desktop_id: GUID,
+    pub hwnd: HWND,
+    pub title: String,
+    pub class_name: String,
+    pub process_id: u32,
+    pub desktop_id: GUID,
+    pub path: String,
 }
 
 unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -75,7 +86,7 @@ unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL 
             );
             //use this if only current desktop's apps needed
             let not_cloaked = cloaked_check.is_err() || !cloaked.as_bool();
-
+            let path = get_executable_path_from_pid(process_id).unwrap_or_default();
             if is_gui && is_not_tool && has_size {
                 open_windows.push(WindowInfo {
                     hwnd,
@@ -83,6 +94,7 @@ unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL 
                     class_name,
                     process_id,
                     desktop_id: GUID::zeroed(),
+                    path,
                 });
                 // println!(
                 //     "GUI Window - HWND: {:?}, Title: \"{}\", Class: \"{}\", PID: {}",
@@ -122,7 +134,7 @@ pub fn get_open_windows(desktop_manager: &IVirtualDesktopManager) -> Vec<WindowI
         for window in &mut open_windows {
             window.desktop_id = get_window_desktop_id(&window.hwnd, &desktop_manager).unwrap();
         }
-        println!("{:?}", &open_windows);
+        // println!("{:?}", &open_windows);
         return open_windows;
     }
 }
@@ -156,6 +168,55 @@ pub fn create_virtual_desktop_manager() -> Result<IVirtualDesktopManager, Error>
                 eprintln!("CoCreateInstance failed: {:?}", e);
                 return Err(e);
             }
+        }
+    }
+}
+
+pub fn get_executable_path_from_hwnd(hwnd: HWND) -> Result<String, Error> {
+    let mut pid = 0;
+    unsafe {
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+    }
+
+    if pid == 0 {
+        println!("pid 0");
+        return Err(Error::empty());
+    }
+
+    get_executable_path_from_pid(pid)
+}
+
+pub fn get_executable_path_from_pid(pid: u32) -> Result<String, Error> {
+    unsafe {
+        let h_process_result = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        let h_process: HANDLE;
+        match h_process_result {
+            Ok(h) => {
+                h_process = h;
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+
+        let mut buffer = [0u16; MAX_PATH as usize];
+        let mut size = buffer.len() as u32;
+
+        let success = QueryFullProcessImageNameW(
+            h_process,
+            PROCESS_NAME_FORMAT(0),
+            PWSTR(buffer.as_mut_ptr()),
+            &mut size
+        );
+
+        match success {
+            Ok(_) => {
+                let os_string = OsString::from_wide(&buffer[..size as usize]);
+                let path = os_string.to_string_lossy().into_owned();
+                println!("Executable Path: {}", path);
+                Ok(path)
+            }
+            Err(e) => { Err(e) }
         }
     }
 }

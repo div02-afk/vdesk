@@ -233,3 +233,13 @@ pub fn launch_and_get_pid(path: &str) -> Option<u32> {
         }
     }
 }
+
+pub fn move_window_to_desktop(
+    desktop_manager: &IVirtualDesktopManager,
+    handle: &HWND,
+    desktop_id: &GUID
+) -> Result<(), Error> {
+    unsafe {
+        return desktop_manager.MoveWindowToDesktop(*handle, desktop_id as *const _);
+    }
+}

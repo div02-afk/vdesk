@@ -3,52 +3,47 @@ import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+interface WindowInfo {
+  id: any;
+  data: {
+    title: String;
+    path: String;
+    process_id: number;
+    class_name: String;
+    desktop_index: number;
+  };
+}
 
+function App() {
+  const [greetMsg, setGreetMsg] = useState({});
+  const [name, setName] = useState("");
+  const [configId, setConfigId] = useState("");
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     setGreetMsg(await invoke("greet", { name }));
   }
 
   async function getOpenWindows() {
-    const openWindows: string = await invoke("send_open_windows");
-    setGreetMsg(openWindows);
+    const openWindows: WindowInfo = await invoke("send_open_windows");
+    setConfigId(openWindows.id);
+    setGreetMsg(`${openWindows.id} + ${typeof openWindows.id}`);
+
+    // setGreetMsg(openWindows);
+  }
+
+  async function startConfig() {
+    console.log("configId", configId);
+    const response = await invoke("start_config", {
+      configId: configId.toString(),
+    });
+    setGreetMsg(JSON.stringify(response));
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          getOpenWindows();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+      <button onClick={getOpenWindows}>Get open windows</button>
+      <button onClick={startConfig}>Start config</button>
+      <p>{JSON.stringify(greetMsg)}</p>
     </main>
   );
 }

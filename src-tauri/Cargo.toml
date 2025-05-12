@@ -22,8 +22,13 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-windows = { version = "0.60.0", features = [
+windows = { version = "0.58.0", features = [
     "Win32_System_Com",
     "Win32_UI_Shell",
+    "Win32_Graphics",
+    "Win32_Graphics_Dwm",
 ] }
-windows-result = "0.3.1"
+windows-result = "0.3.0"
+winvd = { version = "0.0.48" }
+uuid = { version = "1.16.0", features = ["v4"] }
+# winvd = { git = "https://github.com/div02-afk/VirtualDesktopAccessor", branch = "rust" }

@@ -1,9 +1,9 @@
 use std::{ ffi::OsString, os::windows::ffi::OsStringExt, process::Command };
 
 use windows::{
-    core::{ BOOL, GUID, PWSTR },
+    core::{ Error, GUID, PWSTR },
     Win32::{
-        Foundation::{ self, HANDLE, HWND, LPARAM, MAX_PATH },
+        Foundation::{ self, BOOL, HANDLE, HWND, LPARAM, MAX_PATH },
         Graphics::Dwm::{ DwmGetWindowAttribute, DWMWA_CLOAKED },
         System::{
             Com::{ CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED },
@@ -33,7 +33,7 @@ use windows::{
         },
     },
 };
-use windows_result::Error;
+use winvd::get_desktop_by_window;
 
 #[derive(Debug)]
 pub struct WindowInfo {
@@ -43,6 +43,7 @@ pub struct WindowInfo {
     pub process_id: u32,
     pub desktop_id: GUID,
     pub path: String,
+    pub desktop_index: u32,
 }
 
 unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -88,13 +89,28 @@ unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL 
             let not_cloaked = cloaked_check.is_err() || !cloaked.as_bool();
             let path = get_executable_path_from_pid(process_id).unwrap_or_default();
             if is_gui && is_not_tool && has_size {
+                let desktop_result = get_desktop_by_window(hwnd.clone());
+                let desktop_id: GUID;
+                let desktop_index: u32;
+                match desktop_result {
+                    Ok(desktop_clean) => {
+                        desktop_id = desktop_clean.get_id().unwrap_or_default();
+                        desktop_index = desktop_clean.get_index().unwrap_or_default();
+                    }
+                    Err(e) => {
+                        println!("{} {:?}", title, e);
+                        desktop_id = GUID::zeroed();
+                        desktop_index = 0;
+                    }
+                }
                 open_windows.push(WindowInfo {
                     hwnd,
                     title,
                     class_name,
                     process_id,
-                    desktop_id: GUID::zeroed(),
+                    desktop_id,
                     path,
+                    desktop_index,
                 });
                 // println!(
                 //     "GUI Window - HWND: {:?}, Title: \"{}\", Class: \"{}\", PID: {}",
@@ -131,9 +147,7 @@ pub fn get_open_windows(desktop_manager: &IVirtualDesktopManager) -> Vec<WindowI
     unsafe {
         let mut open_windows: Vec<WindowInfo> = Vec::new();
         let _ = EnumWindows(Some(enum_windows_proc), LPARAM(&mut open_windows as *mut _ as isize));
-        for window in &mut open_windows {
-            window.desktop_id = get_window_desktop_id(&window.hwnd, &desktop_manager).unwrap();
-        }
+
         // println!("{:?}", &open_windows);
         return open_windows;
     }
@@ -213,7 +227,7 @@ pub fn get_executable_path_from_pid(pid: u32) -> Result<String, Error> {
             Ok(_) => {
                 let os_string = OsString::from_wide(&buffer[..size as usize]);
                 let path = os_string.to_string_lossy().into_owned();
-                println!("Executable Path: {}", path);
+                // println!("Executable Path: {}", path);
                 Ok(path)
             }
             Err(e) => { Err(e) }

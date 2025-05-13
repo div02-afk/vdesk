@@ -160,7 +160,7 @@ fn create_and_open_config_save() -> Result<File, Error> {
         })?;
 
     let mut path = PathBuf::from(app_data);
-    path.push("vdesk.config");
+    path.push("vdesk.json");
 
     println!("{:?}", path);
     let file = OpenOptions::new().read(true).write(true).open(&path);
@@ -184,7 +184,7 @@ fn create_new_config_save() -> Result<File, Error> {
         })?;
 
     let mut path = PathBuf::from(app_data);
-    path.push("vdesk.config");
+    path.push("vdesk.json");
 
     println!("{:?}", path);
     File::create(&path).or_else(|err| {

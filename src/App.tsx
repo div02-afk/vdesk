@@ -1,34 +1,31 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 import "./App.css";
+import LiveWindowCarousel from "./components/live-window-carousel";
 
 interface WindowInfo {
+  title: String;
+  path: String;
+  process_id: number;
+  class_name: String;
+  desktop_index: number;
+}
+interface Config {
   id: any;
-  data: {
-    title: String;
-    path: String;
-    process_id: number;
-    class_name: String;
-    desktop_index: number;
-  };
+  data: WindowInfo[];
 }
 
+export type { WindowInfo, Config };
+
 function App() {
-  const [greetMsg, setGreetMsg] = useState({});
-  const [name, setName] = useState("");
+  const [live_windows, setLiveWindows] = useState<WindowInfo[]>([]);
+
   const [configId, setConfigId] = useState("");
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
 
   async function getOpenWindows() {
-    const openWindows: WindowInfo = await invoke("send_open_windows");
+    const openWindows: Config = await invoke("send_open_windows");
     setConfigId(openWindows.id);
-    setGreetMsg(`${openWindows.id} + ${typeof openWindows.id}`);
-
-    // setGreetMsg(openWindows);
+    setLiveWindows(openWindows.data);
   }
 
   async function startConfig() {
@@ -36,14 +33,34 @@ function App() {
     const response = await invoke("start_config", {
       configId: configId.toString(),
     });
-    setGreetMsg(JSON.stringify(response));
   }
 
   return (
-    <main className="container">
-      <button onClick={getOpenWindows}>Get open windows</button>
-      <button onClick={startConfig}>Start config</button>
-      <p>{JSON.stringify(greetMsg)}</p>
+    <main className="text-black">
+      <LiveWindowCarousel live_windows={live_windows} />
+      <button
+        onClick={async () => {
+          const res = await invoke("save_config", {
+            configId: configId.toString(),
+          });
+        }}
+      >
+        Save
+      </button>
+      <button
+        onClick={async () => {
+          const res = await invoke("read_configs_from_save");
+        }}
+      >
+        Read
+      </button>
+
+      <button className="border-2 p-2 rounded-2xl" onClick={getOpenWindows}>
+        Get open windows
+      </button>
+      <button className="border-2 p-2 rounded-2xl" onClick={startConfig}>
+        Start config
+      </button>
     </main>
   );
 }

@@ -1,34 +1,23 @@
-use std::{ ffi::OsString, os::windows::ffi::OsStringExt, process::Command };
+use std::{ffi::OsString, os::windows::ffi::OsStringExt, process::Command};
 
 use windows::{
-    core::{ Error, GUID, PWSTR },
+    core::{Error, GUID, PWSTR},
     Win32::{
-        Foundation::{ self, BOOL, HANDLE, HWND, LPARAM, MAX_PATH },
-        Graphics::Dwm::{ DwmGetWindowAttribute, DWMWA_CLOAKED },
+        Foundation::{self, BOOL, HANDLE, HWND, LPARAM, MAX_PATH},
+        Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED},
         System::{
-            Com::{ CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED },
+            Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED},
             Threading::{
-                OpenProcess,
-                QueryFullProcessImageNameW,
-                PROCESS_NAME_FORMAT,
+                OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT,
                 PROCESS_QUERY_LIMITED_INFORMATION,
             },
         },
         UI::{
             Shell::IVirtualDesktopManager,
             WindowsAndMessaging::{
-                EnumWindows,
-                GetClassNameW,
-                GetWindowLongW,
-                GetWindowRect,
-                GetWindowTextW,
-                GetWindowThreadProcessId,
-                IsWindowVisible,
-                GWL_EXSTYLE,
-                GWL_STYLE,
-                WS_EX_TOOLWINDOW,
-                WS_OVERLAPPEDWINDOW,
-                WS_POPUP,
+                EnumWindows, GetClassNameW, GetWindowLongW, GetWindowRect, GetWindowTextW,
+                GetWindowThreadProcessId, IsWindowVisible, GWL_EXSTYLE, GWL_STYLE,
+                WS_EX_TOOLWINDOW, WS_OVERLAPPEDWINDOW, WS_POPUP,
             },
         },
     },
@@ -50,7 +39,7 @@ unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL 
     let open_windows = (lparam.0 as *mut Vec<WindowInfo>).as_mut();
     if let Some(open_windows) = open_windows {
         let mut buffer = [0u16; 512]; // Buffer to store window title
-        // Get window title
+                                      // Get window title
         let length = GetWindowTextW(hwnd, &mut buffer);
         let title = String::from_utf16_lossy(&buffer[..length as usize]);
 
@@ -83,7 +72,7 @@ unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL 
                 hwnd,
                 DWMWA_CLOAKED,
                 &mut cloaked as *mut BOOL as *mut _,
-                std::mem::size_of::<BOOL>() as u32
+                std::mem::size_of::<BOOL>() as u32,
             );
             //use this if only current desktop's apps needed
             let not_cloaked = cloaked_check.is_err() || !cloaked.as_bool();
@@ -127,7 +116,7 @@ unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL 
 
 pub fn get_window_desktop_id(
     handle_value: &HWND,
-    desktop_manager: &IVirtualDesktopManager
+    desktop_manager: &IVirtualDesktopManager,
 ) -> Result<GUID, Error> {
     // let toplevelwindow = HWND(handle_value as isize as *mut _);
     unsafe {
@@ -146,7 +135,10 @@ pub fn get_window_desktop_id(
 pub fn get_open_windows(desktop_manager: &IVirtualDesktopManager) -> Vec<WindowInfo> {
     unsafe {
         let mut open_windows: Vec<WindowInfo> = Vec::new();
-        let _ = EnumWindows(Some(enum_windows_proc), LPARAM(&mut open_windows as *mut _ as isize));
+        let _ = EnumWindows(
+            Some(enum_windows_proc),
+            LPARAM(&mut open_windows as *mut _ as isize),
+        );
 
         // println!("{:?}", &open_windows);
         return open_windows;
@@ -165,15 +157,16 @@ pub fn create_virtual_desktop_manager() -> Result<IVirtualDesktopManager, Error>
             0xaa509086,
             0x5ca9,
             0x4c25,
-            [0x8f, 0x95, 0x58, 0x9d, 0x3c, 0x07, 0xb4, 0x8a]
+            [0x8f, 0x95, 0x58, 0x9d, 0x3c, 0x07, 0xb4, 0x8a],
         );
 
         // Create an instance of IVirtualDesktopManager
-        let desktop_manager_result: windows::core::Result<IVirtualDesktopManager> = CoCreateInstance(
-            &clsid, // CLSID of IVirtualDesktopManager
-            None, // No aggregation
-            CLSCTX_ALL // Create in all COM contexts
-        );
+        let desktop_manager_result: windows::core::Result<IVirtualDesktopManager> =
+            CoCreateInstance(
+                &clsid,     // CLSID of IVirtualDesktopManager
+                None,       // No aggregation
+                CLSCTX_ALL, // Create in all COM contexts
+            );
         match desktop_manager_result {
             Ok(_) => {
                 return Ok(desktop_manager_result.unwrap());
@@ -220,7 +213,7 @@ pub fn get_executable_path_from_pid(pid: u32) -> Result<String, Error> {
             h_process,
             PROCESS_NAME_FORMAT(0),
             PWSTR(buffer.as_mut_ptr()),
-            &mut size
+            &mut size,
         );
 
         match success {
@@ -230,7 +223,7 @@ pub fn get_executable_path_from_pid(pid: u32) -> Result<String, Error> {
                 // println!("Executable Path: {}", path);
                 Ok(path)
             }
-            Err(e) => { Err(e) }
+            Err(e) => Err(e),
         }
     }
 }
@@ -251,7 +244,7 @@ pub fn launch_and_get_pid(path: &str) -> Option<u32> {
 pub fn move_window_to_desktop(
     desktop_manager: &IVirtualDesktopManager,
     handle: &HWND,
-    desktop_id: &GUID
+    desktop_id: &GUID,
 ) -> Result<(), Error> {
     unsafe {
         return desktop_manager.MoveWindowToDesktop(*handle, desktop_id as *const _);

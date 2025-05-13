@@ -31,4 +31,5 @@ windows = { version = "0.58.0", features = [
 windows-result = "0.3.0"
 winvd = { version = "0.0.48" }
 uuid = { version = "1.16.0", features = ["v4"] }
+tauri-plugin-fs = "2.2.1"
 # winvd = { git = "https://github.com/div02-afk/VirtualDesktopAccessor", branch = "rust" }

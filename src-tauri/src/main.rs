@@ -1,8 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod window_handler;
-
+// mod commands;
+// mod window_handler;
 fn main() {
     println!("Architecture: {:?}", std::env::consts::ARCH);
     vdesk_lib::run();
